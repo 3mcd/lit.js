@@ -2,7 +2,7 @@
   "name": "lit-js",
   "version": "1.0.0",
   "description": "ES2015 template-to-DOM rendering engine.",
-  "main": "dist/lit-js.js",
+  "main": "dist/lit.js",
   "devDependencies": {
     "babel": "^6.5.2",
     "babel-core": "^6.18.2",
