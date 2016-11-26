@@ -45,23 +45,13 @@ const replaceElements = (el, elements, regex) => {
     // Find sub-placeholders. e.g. <% 2 %>
     const matches = group.textContent.match(regex);
     // For each sub-placeholder
-    matches.forEach((placeholderText, i) => {
-      var placeholder;
-      var rest;
-
-      if (i === 0) {
-        rest = group.splitText(group.textContent.indexOf(placeholderText) + placeholderText.length);
-        placeholder = group;
-      } else {
-        placeholder = group.splitText(group.textContent.indexOf(placeholderText));
-        if (i !== matches.length) {
-          rest = placeholder.splitText(placeholder.textContent.indexOf(placeholderText) + placeholderText.length);
-        }
-      }
+    var rest = group;
+    matches.forEach((text, i) => {
+      var start = rest.textContent.indexOf(text);
+      var remaining = rest.splitText(start);
+      rest = remaining.splitText(text.length);
       // Grab the newly isolated placeholder
-      placeholders.push(placeholder);
-      // Keep moving
-      group = rest;
+      placeholders.push(remaining);
     });
   });
   // Swap each placeholder with its corresponding element in the(elements Array

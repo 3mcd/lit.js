@@ -4,8 +4,21 @@ import sinon from 'sinon';
 import View from './view.mock';
 
 import { placeholderTemplate } from '../src/const';
-import { interleave } from '../src/utils';
+import { escape } from '../src/utils';
 import { createRenderer } from '../src/api';
+
+const interleave = (a1, a2) => {
+  var arr = [];
+  for (var i = 0, len = Math.max(a1.length, a2.length); i < len; i++) {
+    if (i < a1.length) {
+      arr.push(a1[i]);
+    }
+    if (i < a2.length) {
+      arr.push(a2[i]);
+    }
+  }
+  return arr;
+}
 
 const { chunk, componentRenderer } = createRenderer({
   parse(view) {
@@ -71,6 +84,15 @@ describe('API', () => {
     };
     describe('as a tag', () => runTestsWithMode(tests, true));
     describe('as a function', () => runTestsWithMode(tests, false));
+    describe('as a function', () => {
+      it('turns non-object expressions into HTML-escaped text content', () => {
+        const children = ['<div>', new View(), '</div>'];
+        const ch = chunk(children);
+        var i = 0;
+        const output = children.map((c) => typeof c === 'string' ? escape(c) : placeholderTemplate(i++)).join('');
+        expect(ch.html).to.equal(output);
+      });
+    });
   });
 
   describe('renderer', () => {
@@ -107,7 +129,6 @@ describe('API', () => {
         [...main.children].forEach(
           (el, i) => expect(el).to.equal(children[i].el)
         );
-        console.log(main.children[0])
         expect(main.children[0].children[0]).to.equal(nestedView.el);
         expect(main.children[0].children[0].children[0].children[0]).to.equal(deepNestedViewInChunk.el);
       },

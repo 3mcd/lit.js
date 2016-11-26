@@ -4,7 +4,6 @@ const { createRenderer } = lit;
 const domComponentRenderer = createRenderer({
   parse(view) {
     if (view.$el instanceof jQuery) {
-      console.log('Adding', view);
       return view;
     }
   },
@@ -13,7 +12,6 @@ const domComponentRenderer = createRenderer({
     return [...view.$el];
   },
   destroy(view) {
-    console.log('Removing', view);
     view.$el.remove();
   }
 });
@@ -49,6 +47,9 @@ const Person = (name, age, money) => {
   var $el = $(`<div />`);
   const render = () =>
     componentRenderer($el[0])`
+      ${
+        chunk(['<a>', Red('bananas'), '</a>'])
+      }
         ${dl(
           [ 'Name'  , '<strong>' + name + '</strong>'          ],
           [ 'Age'   , Clicker(age)   ],
