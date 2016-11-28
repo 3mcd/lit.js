@@ -1,6 +1,6 @@
 {
   "name": "lit-js",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "ES2015 template-to-DOM rendering engine.",
   "main": "dist/lit.js",
   "devDependencies": {
