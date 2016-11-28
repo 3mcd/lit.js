@@ -19,6 +19,8 @@ import {
   createDefaultConfig
 } from './const';
 
+const $VALUE_REJECTED = Symbol('rejected');
+
 const warn = (msg) => console.warn(ERROR_PREFIX, msg);
 
 const warnings = {
@@ -183,6 +185,10 @@ const _createRenderer = (config) => {
   };
 
   const parseExpression = (exp) => {
+    // Ignore null/undefined.
+    if (exp == void(0)) {
+      return $VALUE_REJECTED;
+    }
     if (isString(exp) || isChunk(exp)) {
       return exp;
     }
@@ -201,12 +207,12 @@ const _createRenderer = (config) => {
     }
     if (isArray(exp)) {
       warn(warnings.EXP_ARRAY);
-      return null;
+      return $VALUE_REJECTED;
     }
     // Ignore all other objects.
     if (isObject(exp)) {
       warn(warnings.EXP_OBJECT);
-      return null;
+      return $VALUE_REJECTED;
     }
     // Stringify all other values.
     exp = '' + exp;
@@ -219,13 +225,13 @@ const _createRenderer = (config) => {
     if (isArray(exp)) {
       for (let i = 0, len = exp.length; i < len; i++) {
         let c = parseExpression(exp[i]);
-        if (c) {
+        if (c !== $VALUE_REJECTED) {
           arr.push(c);
         }
       }
     } else {
       let c = parseExpression(exp);
-      if (c) {
+      if (c !== $VALUE_REJECTED) {
         arr.push(c);
       }
     }

@@ -88,6 +88,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _const = __webpack_require__(4);
 
+	var $VALUE_REJECTED = Symbol('rejected');
+
 	var warn = function warn(msg) {
 	  return console.warn(_const.ERROR_PREFIX, msg);
 	};
@@ -281,6 +283,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  };
 
 	  var parseExpression = function parseExpression(exp) {
+	    // Ignore null/undefined.
+	    if (exp == void 0) {
+	      return $VALUE_REJECTED;
+	    }
 	    if (isString(exp) || isChunk(exp)) {
 	      return exp;
 	    }
@@ -299,12 +305,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    if (isArray(exp)) {
 	      warn(warnings.EXP_ARRAY);
-	      return null;
+	      return $VALUE_REJECTED;
 	    }
 	    // Ignore all other objects.
 	    if (isObject(exp)) {
 	      warn(warnings.EXP_OBJECT);
-	      return null;
+	      return $VALUE_REJECTED;
 	    }
 	    // Stringify all other values.
 	    exp = '' + exp;
@@ -317,13 +323,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    if (isArray(exp)) {
 	      for (var i = 0, len = exp.length; i < len; i++) {
 	        var c = parseExpression(exp[i]);
-	        if (c) {
+	        if (c !== $VALUE_REJECTED) {
 	          arr.push(c);
 	        }
 	      }
 	    } else {
 	      var _c = parseExpression(exp);
-	      if (_c) {
+	      if (_c !== $VALUE_REJECTED) {
 	        arr.push(_c);
 	      }
 	    }
