@@ -60,6 +60,7 @@ const cleanup = (child, destroy) => {
   const view = componentMap.get(child);
   if (view) {
     destroy(view);
+    componentMap.delete(child);
   }
   if (isNode(child)) {
     teardown(child, destroy);
@@ -101,9 +102,9 @@ const _createRenderer = (config) => {
   const { parse, render, destroy } = config;
 
   const componentRenderer = (el) => function renderer(segments, ...expressions) {
+    teardown(el, destroy);
     const ch = isChunk(segments) ? segments : chunk(...arguments);
     // Remove all child components and store the incoming ones.
-    teardown(el, destroy);
     childMap.set(el, ch);
     // Render the chunk to the el.
     renderChunkToElement(ch, el);
