@@ -109,24 +109,6 @@ const _createRenderer = (config) => {
     return ch;
   };
 
-  const getComponent = (exp) => {
-    const arr = [];
-    if (isArray(exp)) {
-      for (let i = 0, len = exp.length; i < len; i++) {
-        let c = parseExpression(exp[i]);
-        if (c) {
-          arr.push(c);
-        }
-      }
-    } else {
-      let c = parseExpression(exp);
-      if (c) {
-        arr.push(c);
-      }
-    }
-    return arr;
-  }
-
   const createChunk = (segments, ...expressions) => {
     var html = '';
     const components = [];
@@ -147,12 +129,13 @@ const _createRenderer = (config) => {
         html += escape(seg);
         continue;
       }
-      let c = getComponent(exp);
-      for (let i = 0, len = c.length; i < len; i++) {
-        if (isString(c[i])) {
-          html += c[i];
+      let parsed = parseExpressions(exp);
+      for (let i = 0, len = parsed.length; i < len; i++) {
+        let c = parsed[i];
+        if (isString(c)) {
+          html += escape(c);
         } else {
-          components.push(c[i]);
+          components.push(c);
           html += PLACEHOLDER_HTML;
         }
       }
@@ -170,66 +153,85 @@ const _createRenderer = (config) => {
     return ch;
   };
 
-  const parseExpression = (c) => {
-    const tryParse = (c) => {
-      var parsed = parse(c);
-      // If the parse() function returns a falsey value, the component must not
-      // be a view.
-      if (!parsed) {
-        return c;
-      }
-      // View library might organize views as arrays.
-      if (!isObject(parsed)) {
-        warn(warnings.PARSED_NON_OBJECT);
-      }
-      // Render the element and return the element (or elements) therein. This
-      // would potentially trigger other calls to componentRenderer which would
-      // recursively set up child content in a depth-first manner.
-      let el = render(parsed);
-      // Multiple elements can be returned from the render function. They are
-      // combined into a chunk. It is assumed that the parent view will clean
-      // them up with destroy() is called.
-      if (isArray(el)) {
-        el = chunk(el);
-      }
-      // Set the element (or chunk) to the View instance in componentMap. The
-      // componentMap is accessed in cleanup() to reconcile an element or chunk
-      // with its view.
-      if (isObject(el)) {
-        componentMap.set(el, parsed);
-      }
-      return el;
-    };
-    if (isString(c) || isChunk(c)) {
-      return c;
+  const tryParse = (exp) => {
+    var parsed = parse(exp);
+    // If the parse() function returns a falsey value, the component must not
+    // be a view.
+    if (!parsed) {
+      return exp;
+    }
+    // View library might organize views as arrays.
+    if (!isObject(parsed)) {
+      warn(warnings.PARSED_NON_OBJECT);
+    }
+    // Render the element and return the element (or elements) therein. This
+    // would potentially trigger other calls to componentRenderer which would
+    // recursively set up child content in a depth-first manner.
+    let el = render(parsed);
+    // Multiple elements can be returned from the render function. They are
+    // combined into a chunk. It is assumed that the parent view will clean
+    // them up with destroy() is called.
+    if (isArray(el)) {
+      el = chunk(el);
+    }
+    // Set the element (or chunk) to the View instance in componentMap. The
+    // componentMap is accessed in cleanup() to reconcile an element or chunk
+    // with its view.
+    if (isObject(el)) {
+      componentMap.set(el, parsed);
+    }
+    return el;
+  };
+
+  const parseExpression = (exp) => {
+    if (isString(exp) || isChunk(exp)) {
+      return exp;
     }
     // Yield control to the end-user. Attempt to render the component if it is
     // fact a view instance.
-    c = tryParse(c);
+    exp = tryParse(exp);
     // If the component is still a function for whatever reason, execute it and
     // set the component to the return value of the function.
-    if (isFunction(c)) {
-      c = tryParse(c());
+    if (isFunction(exp)) {
+      exp = tryParse(exp());
     }
     // The function could have potentially returned a chunk. Either way, Node
     // instances and chunks are the last objects we will accept.
-    if (isChunk(c) || isNode(c)) {
-      return c;
+    if (isChunk(exp) || isNode(exp)) {
+      return exp;
     }
-    if (isArray(c)) {
+    if (isArray(exp)) {
       warn(warnings.EXP_ARRAY);
       return null;
     }
     // Ignore all other objects.
-    if (isObject(c)) {
+    if (isObject(exp)) {
       warn(warnings.EXP_OBJECT);
       return null;
     }
     // Stringify all other values.
-    c = '' + c;
+    exp = '' + exp;
 
-    return c;
+    return exp;
   };
+
+  const parseExpressions = (exp) => {
+    const arr = [];
+    if (isArray(exp)) {
+      for (let i = 0, len = exp.length; i < len; i++) {
+        let c = parseExpression(exp[i]);
+        if (c) {
+          arr.push(c);
+        }
+      }
+    } else {
+      let c = parseExpression(exp);
+      if (c) {
+        arr.push(c);
+      }
+    }
+    return arr;
+  }
 
   return { componentRenderer, chunk };
 }
