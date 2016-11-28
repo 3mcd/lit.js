@@ -167,7 +167,6 @@ const _createRenderer = (config) => {
   const chunk = function chunk(segments, ...expressions) {
     const ch = createChunk(...arguments);
     chunks.add(ch);
-    console.log(ch);
     return ch;
   };
 

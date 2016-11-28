@@ -229,8 +229,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var asTag = !!segments.raw;
 
 	    if (!isArray(segments)) {
-	      components.push(getComponent(segments));
-	      return { components: components, html: html };
+	      segments = [segments];
 	    }
 
 	    if (asTag) {
