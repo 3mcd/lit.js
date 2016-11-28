@@ -22,7 +22,6 @@ import {
 const warn = (msg) => console.warn(ERROR_PREFIX, msg);
 
 const warnings = {
-  TYPE: (a, b) => `${a} must be of type ${b}.`, 
   EXP_ARRAY: 'A deeply nested array was used inside of a template expression. Adjust your template to remove redundant nesting of arrays.',
   EXP_OBJECT: 'An object was used inside of a template expression. Objects other than views, Nodes and and chunks are ignored.',
   PARSED_NON_OBJECT: 'An array or value other than object was returned from parse(). parse() should return a view instance, usually an object. If you return an object other than a view instance, your views may not be disposed of correctly.'
