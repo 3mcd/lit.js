@@ -50,12 +50,12 @@ const Person = (name, age, money) => {
       ${
         chunk(['<a>', Red('bananas'), '</a>'])
       }
-        ${dl(
-          [ 'Name'  , '<strong>' + name + '</strong>'          ],
-          [ 'Age'   , Clicker(age)   ],
-          [ 'Money' , Clicker(money) ]
-        )}
-      `;
+      ${dl(
+        [ 'Name'  , '<strong>' + name + '</strong>'          ],
+        [ 'Age'   , Clicker(age)   ],
+        [ 'Money' , Clicker(money) ]
+      )}
+    `;
   return { $el, render };
 } 
 
@@ -74,9 +74,37 @@ const app = (people) => {
 
 const a = app([
   { name: 'Brad', age: 28, money: 9000 },
-  { name: 'Lori', age: 12, money: 12 }
+  { name: 'Lori', age: 12, money: 10 }
 ]);
 
 a.$el.appendTo(document.body);
 
+var t0 = performance.now();
 a.render();
+var t1 = performance.now();
+
+console.log("1 render: " + (t1 - t0) + "ms");
+
+t0 = performance.now();
+for (i = 0; i < 10; i++) {
+  a.render();
+}
+t1 = performance.now();
+
+console.log("10 renders: " + (t1 - t0) + "ms");
+
+t0 = performance.now();
+for (i = 0; i < 100; i++) {
+  a.render();
+}
+t1 = performance.now();
+
+console.log("100 renders: " + (t1 - t0) + "ms");
+
+t0 = performance.now();
+for (i = 0; i < 1000; i++) {
+  a.render();
+}
+t1 = performance.now();
+
+console.log("1000 renders: " + (t1 - t0) + "ms");

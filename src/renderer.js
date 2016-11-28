@@ -1,22 +1,28 @@
 import {
-  empty,
-  replaceElements,
-  moveChildren,
-  tempElement,
-  escape
+  escape,
+  applyConfig
 } from './utils';
 
 import {
-  PLACEHOLDER_REGEX,
-  placeholderTemplate,
+  emptyNode,
+  tempElement,
+  moveChildNodes,
+  replaceElements
+} from './utils/dom';
+
+import {
+  ERROR_PREFIX,
   HTML_WHITESPACE_REGEX,
-  htmlWhitespaceReplace
+  PLACEHOLDER_HTML,
+  htmlWhitespaceReplace,
+  CONFIG_TYPES,
+  createDefaultConfig
 } from './const';
 
-const warn = (msg) => console.warn('lit-js:', msg);
+const warn = (msg) => console.warn(ERROR_PREFIX, msg);
 
 const warnings = {
-  TYPE: (a, b) => `${a} must be of type ${b}`, 
+  TYPE: (a, b) => `${a} must be of type ${b}.`, 
   EXP_ARRAY: 'A deeply nested array was used inside of a template expression. Adjust your template to remove redundant nesting of arrays.',
   EXP_OBJECT: 'An object was used inside of a template expression. Objects other than views, Nodes and and chunks are ignored.',
   PARSED_NON_OBJECT: 'An array or value other than object was returned from parse(). parse() should return a view instance, usually an object. If you return an object other than a view instance, your views may not be disposed of correctly.'
@@ -24,6 +30,7 @@ const warnings = {
 
 const isChunk = (c) => chunks.has(c);
 const isNode = (c) => c instanceof Node;
+const isObject = (c) => typeof c === 'object' && !isArray(c);
 const isArray = (c) => Array.isArray(c);
 const isString = (c) => typeof c === 'string';
 const isFunction = (c) => c instanceof Function;
@@ -49,10 +56,6 @@ const teardown = (el, destroy) => {
 };
 
 const cleanup = (child, destroy) => {
-  if (isArray(child)) {
-    child.forEach((c) => cleanup(c, destroy));
-    return;
-  }
   const view = componentMap.get(child);
   if (view) {
     destroy(view);
@@ -62,39 +65,39 @@ const cleanup = (child, destroy) => {
     return;
   } 
   if (isChunk(child)) {
-    child.children.forEach((c) => cleanup(c, destroy));
+    child.components.forEach((c) => cleanup(c, destroy));
   }
 };
 
-const renderChunkToElement = (chunk, el, placeholderMatch) => {
-  const { html, children } = chunk;
-  // Create an element with the child content of the view.
-  const temp = inject(children, html, placeholderMatch);
-  // Empty the view element.
-  empty(el);
-  // Move new elements from temp to view element.
-  moveChildren(temp, el);
+const renderChunkToElement = (chunk, el) => {
+  const ch = flattenChunk(chunk);
+  const tt = tempElement(ch.html);
+  replaceElements(tt, ch.components);
+  emptyNode(el);
+  moveChildNodes(tt, el);
 };
 
-const inject = (children, html, placeholderMatch) => {
-  const chunked = children.map((child) => {
-    if (isChunk(child)) {
-      return [...inject(child.children, child.html, placeholderMatch).childNodes];
+let placeholderRegex = new RegExp(PLACEHOLDER_HTML, 'g');
+
+const flattenChunk = (chunk) => {
+  var i = 0;
+  const newChunk = { components: [] };
+  newChunk.html = chunk.html.replace(placeholderRegex, (match) => {
+    const c = chunk.components[i++];
+    if (isChunk(c)) {
+      let flat = flattenChunk(c);
+      newChunk.components = newChunk.components.concat(flat.components);
+      return flat.html;
+    } else {
+      newChunk.components.push(c);
     }
-    return child;
+    return match;
   });
-  // Build DOM.
-  const temp = tempElement(html);
-  replaceElements(temp, chunked, placeholderMatch);
-  return temp;
+  return newChunk;
 };
 
 const _createRenderer = (config) => {
-  const { parse, render, destroy, placeholder: { match, template } } = config;
-
-  const removePlaceholders = (s) => {
-    return s.replace(match, '');
-  };
+  const { parse, render, destroy } = config;
 
   const componentRenderer = (el) => function renderer(segments, ...expressions) {
     const ch = isChunk(segments) ? segments : chunk(...arguments);
@@ -102,32 +105,14 @@ const _createRenderer = (config) => {
     teardown(el, destroy);
     childMap.set(el, ch);
     // Render the chunk to the el.
-    renderChunkToElement(ch, el, match);
-    return ch;
-  };
-
-  const chunk = function chunk(segments, ...expressions) {
-    // Placeholder index
-    var p = 0;
-    var html = '';
-    const children = [];
-    const components = getComponents(...arguments);
-    components.forEach((c) => {
-      if (!isString(c)) {
-        children.push(c);
-        c = template(p++);
-      }
-      html += c;
-    });
-    const ch = { children, html };
-    chunks.add(ch);
+    renderChunkToElement(ch, el);
     return ch;
   };
 
   const getComponent = (exp) => {
     const arr = [];
     if (isArray(exp)) {
-      for (let i = 0; i < exp.length; i++) {
+      for (let i = 0, len = exp.length; i < len; i++) {
         let c = parseExpression(exp[i]);
         if (c) {
           arr.push(c);
@@ -142,30 +127,48 @@ const _createRenderer = (config) => {
     return arr;
   }
 
-  const getComponents = (segments, ...expressions) => {
-    // componentRenderer() or chunk() was not called as a tag
-    if (!segments.raw) {
-      if (!isArray(segments)) {
-        segments = [segments];
-      }
-      return [...segments, ...expressions].reduce((arr, exp, i) => {
-        return arr.concat(getComponent(exp));
-      }, []);
+  const createChunk = (segments, ...expressions) => {
+    var html = '';
+    const components = [];
+    const asTag = !!segments.raw;
+
+    if (!isArray(segments)) {
+      segments = [segments];
     }
-    return expressions.reduce((arr, exp, i) => {
-      const seg = segments[i + 1];
-      arr = arr.concat(getComponent(exp));
-      arr.push(parseSegment(seg));
-      return arr;
-    }, [segments[0]]);
+
+    if (asTag) {
+      html += segments[0];
+    }
+
+    for (let i = asTag ? 1 : 0, len = segments.length; i < len; i++) { 
+      let seg = segments[i];
+      let exp = asTag ? expressions[i - 1] : seg;
+      if (!asTag && isString(seg)) {
+        html += escape(seg);
+        continue;
+      }
+      let c = getComponent(exp);
+      for (let i = 0, len = c.length; i < len; i++) {
+        if (isString(c[i])) {
+          html += c[i];
+        } else {
+          components.push(c[i]);
+          html += PLACEHOLDER_HTML;
+        }
+      }
+      if (asTag) {
+        html += seg;
+      }
+    }
+
+    return { components, html };
   };
 
-  const parseSegment = (s) => {
-    s = removePlaceholders(s);
-    return s.replace(
-      HTML_WHITESPACE_REGEX,
-      htmlWhitespaceReplace
-    );
+  const chunk = function chunk(segments, ...expressions) {
+    const ch = createChunk(...arguments);
+    chunks.add(ch);
+    console.log(ch);
+    return ch;
   };
 
   const parseExpression = (c) => {
@@ -177,7 +180,7 @@ const _createRenderer = (config) => {
         return c;
       }
       // View library might organize views as arrays.
-      if (typeof parsed !== 'object' || isArray(parsed)) {
+      if (!isObject(parsed)) {
         warn(warnings.PARSED_NON_OBJECT);
       }
       // Render the element and return the element (or elements) therein. This
@@ -193,16 +196,12 @@ const _createRenderer = (config) => {
       // Set the element (or chunk) to the View instance in componentMap. The
       // componentMap is accessed in cleanup() to reconcile an element or chunk
       // with its view.
-      if (typeof el === 'object') {
+      if (isObject(el)) {
         componentMap.set(el, parsed);
       }
       return el;
     };
-    if (isString(c)) {
-      return escape(removePlaceholders(c));
-    }
-    // Component is already a chunk.
-    if (isChunk(c)) {
+    if (isString(c) || isChunk(c)) {
       return c;
     }
     // Yield control to the end-user. Attempt to render the component if it is
@@ -215,7 +214,7 @@ const _createRenderer = (config) => {
     }
     // The function could have potentially returned a chunk. Either way, Node
     // instances and chunks are the last objects we will accept.
-    if (isNode(c) || isChunk(c)) {
+    if (isChunk(c) || isNode(c)) {
       return c;
     }
     if (isArray(c)) {
@@ -223,7 +222,7 @@ const _createRenderer = (config) => {
       return null;
     }
     // Ignore all other objects.
-    if (typeof c === 'object') {
+    if (isObject(c)) {
       warn(warnings.EXP_OBJECT);
       return null;
     }
@@ -237,46 +236,7 @@ const _createRenderer = (config) => {
 }
 
 const createRenderer = function createRenderer(options = {}) {
-  const config = {
-    parse: (view) => view,
-    render: (view) => view,
-    destroy: (view) => view.parentElement.removeChild(view),
-    placeholder: {
-      match: PLACEHOLDER_REGEX,
-      template: placeholderTemplate
-    }
-  };
-
-  const {
-    parse = config.parse,
-    render = config.render,
-    destroy = config.destroy,
-    placeholder = config.placeholder
-  } = options;
-
-  if (!isFunction(render)) {
-    warn(warnings.TYPE('createRenderer option render', 'Function'));
-  } else {
-    config.render = render;
-  }
-
-  if (!isFunction(destroy)) {
-    warn(warnings.TYPE('createRenderer option destroy', 'Function.'));
-  } else {
-    config.destroy = destroy;
-  }
-
-  if (!isFunction(parse)) {
-    warn(warnings.TYPE('createRenderer option parse', 'Function.'));
-  } else {
-    config.parse = parse;
-  }
-
-  let { match, template } = placeholder;
-
-  placeholder.match = match;
-  placeholder.template = template;
-
+  const config = applyConfig(createDefaultConfig(), options, CONFIG_TYPES, ERROR_PREFIX);
   return _createRenderer(config);
 };
 

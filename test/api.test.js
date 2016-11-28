@@ -3,7 +3,7 @@ import sinon from 'sinon';
 
 import View from './view.mock';
 
-import { placeholderTemplate } from '../src/const';
+import { PLACEHOLDER_HTML } from '../src/const';
 import { escape } from '../src/utils';
 import { createRenderer } from '../src/api';
 
@@ -50,21 +50,21 @@ describe('API', () => {
       'embeds single components': (tag) => {
         const child = new View();
         const ch = tag ? chunk`${child}` : chunk(child);
-        expect(ch.children[0]).to.equal(child.el);
+        expect(ch.components[0]).to.equal(child.el);
       },
       'embeds an array of components': (tag) => {
         const components = [new View(), chunk('abc'), document.createElement('div'), chunk(123)];
         const ch = tag ? chunk`${components}` : chunk(components);
         // Each component should be added to the chunk's children, in an identical order:
-        expect(ch.children.length).to.equal(components.length);
+        expect(ch.components.length).to.equal(components.length);
         components.forEach(
           (child, i) => {
             if (child instanceof View) {
               // Either a view:
-              expect(ch.children[i]).to.equal(child.el);
+              expect(ch.components[i]).to.equal(child.el);
             } else {
               // Or a chunk:
-              expect(ch.children[i]).to.equal(child);
+              expect(ch.components[i]).to.equal(child);
             }
           }
         );
@@ -74,25 +74,26 @@ describe('API', () => {
         const primitives = ['ABC', 123, false, 'DEF'];
         const children = interleave(primitives, components);
         const ch = tag ? chunk`${children}` : chunk(children);
-        const placeholders = components.map((a, i) => placeholderTemplate(i));
+        const placeholders = components.map(() => PLACEHOLDER_HTML);
         // Each component should be preceded by any primitives before it, e.g. HTML content:
+        let next = ch.html;
         placeholders.forEach((p, i) => {
-          let prev = ch.html.slice(ch.html.indexOf(primitives[i]), ch.html.indexOf(p));
+          let prev = next.slice(next.indexOf(primitives[i]), next.indexOf(p));
           expect(prev).to.equal(primitives[i].toString());
+          next = next.slice(next.indexOf(prev) + prev.length + PLACEHOLDER_HTML.length);
         });
       }
     };
-    describe('as a tag', () => runTestsWithMode(tests, true));
-    describe('as a function', () => runTestsWithMode(tests, false));
     describe('as a function', () => {
       it('turns non-object expressions into HTML-escaped text content', () => {
         const children = ['<div>', new View(), '</div>'];
         const ch = chunk(children);
-        var i = 0;
-        const output = children.map((c) => typeof c === 'string' ? escape(c) : placeholderTemplate(i++)).join('');
+        const output = children.map((c) => typeof c === 'string' ? escape(c) : PLACEHOLDER_HTML).join('');
         expect(ch.html).to.equal(output);
       });
     });
+    describe('as a function (cont.)', () => runTestsWithMode(tests, false));
+    describe('as a tag', () => runTestsWithMode(tests, true));
   });
 
   describe('renderer', () => {
