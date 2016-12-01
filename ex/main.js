@@ -1,7 +1,7 @@
 const { createRenderer } = lit;
 
 // A simple jQuery component renderer.
-const domComponentRenderer = createRenderer({
+const simpleViewRenderer = createRenderer({
   parse(view) {
     if (view.$el instanceof jQuery) {
       return view;
@@ -16,7 +16,7 @@ const domComponentRenderer = createRenderer({
   }
 });
 
-const { componentRenderer, chunk } = domComponentRenderer;
+const { componentRenderer, chunk } = simpleViewRenderer;
 
 const dlGroup = ([t, d]) => chunk`
   <dt>${Red(t)}</dt>
@@ -72,39 +72,26 @@ const app = (people) => {
   return { $el, render };
 };
 
-const a = app([
-  { name: 'Brad', age: 28, money: 9000 },
-  { name: 'Lori', age: 12, money: 10 }
-]);
+const people = [];
+
+for (var i = 0; i < 100; i++) {
+  people.push({ name: 'Brad', age: 28, money: 9000 });
+}
+
+const a = app(people);
 
 a.$el.appendTo(document.body);
 
-var t0 = performance.now();
 a.render();
-var t1 = performance.now();
 
-console.log("1 render: " + (t1 - t0) + "ms");
+const test = (n) => {
+  var orig = n;
+  var t0 = performance.now();
+  while (n-- > 0) {
+    a.render();
+  }
+  var t1 = performance.now();
+  console.log(orig + ' renders: ' + (t1 - t0) + 'ms');
+};
 
-t0 = performance.now();
-for (i = 0; i < 10; i++) {
-  a.render();
-}
-t1 = performance.now();
-
-console.log("10 renders: " + (t1 - t0) + "ms");
-
-t0 = performance.now();
-for (i = 0; i < 100; i++) {
-  a.render();
-}
-t1 = performance.now();
-
-console.log("100 renders: " + (t1 - t0) + "ms");
-
-t0 = performance.now();
-for (i = 0; i < 1000; i++) {
-  a.render();
-}
-t1 = performance.now();
-
-console.log("1000 renders: " + (t1 - t0) + "ms");
+test(10);

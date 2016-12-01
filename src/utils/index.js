@@ -15,7 +15,13 @@ const applyConfig = (config, next, types = null, errorPrefix = '') => {
   return config;
 };
 
-const escapeChars = {
+const isArray = (obj) => Array.isArray(obj);
+const isFunction = (obj) => obj instanceof Function;
+const isNode = (obj) => obj instanceof Node;
+const isObject = (obj) => typeof obj === 'object' && !isArray(obj);
+const isString = (obj) => typeof obj === 'string';
+
+const htmlEscapeChars = {
   '&': '&amp;',
   '<': '&lt;',
   '>': '&gt;',
@@ -24,9 +30,14 @@ const escapeChars = {
 };
 
 const ESCAPE_REGEX = /[&<>'"]/g;
-const escape = (s) => s.replace(ESCAPE_REGEX, (m) => escapeChars[m]);
+const escapeHTML = (s) => s.replace(ESCAPE_REGEX, (m) => htmlEscapeChars[m]);
 
 export {
-  escape,
-  applyConfig
+  escapeHTML,
+  applyConfig,
+  isArray,
+  isFunction,
+  isNode,
+  isObject,
+  isString
 };

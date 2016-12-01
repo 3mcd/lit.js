@@ -4,7 +4,7 @@ import sinon from 'sinon';
 import View from './view.mock';
 
 import { PLACEHOLDER_HTML } from '../src/const';
-import { escape } from '../src/utils';
+import { escapeHTML } from '../src/utils';
 import { createRenderer } from '../src/api';
 
 const interleave = (a1, a2) => {
@@ -88,7 +88,7 @@ describe('API', () => {
       it('turns non-object expressions into HTML-escaped text content', () => {
         const children = ['<div>', new View(), '</div>'];
         const ch = chunk(children);
-        const output = children.map((c) => typeof c === 'string' ? escape(c) : PLACEHOLDER_HTML).join('');
+        const output = children.map((c) => typeof c === 'string' ? escapeHTML(c) : PLACEHOLDER_HTML).join('');
         expect(ch.html).to.equal(output);
       });
     });

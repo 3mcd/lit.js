@@ -36,7 +36,7 @@ const tempElement = (html) => {
 };
 
 const replaceElements = (el, elements, regex) => {
-  let p = [...el.getElementsByClassName('__lit')];
+  let p = [...el.getElementsByTagName('litpl')];
   for (let i = elements.length - 1; i >= 0; i--) {
     swap(elements[i], p[i]);
   }

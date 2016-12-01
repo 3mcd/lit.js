@@ -1,243 +1,146 @@
 import {
+  applyConfig,
   escape,
-  applyConfig
+  isArray,
+  isFunction,
+  isNode,
+  isObject,
+  isString
 } from './utils';
+
+import { map } from './types';
+
+import {
+  chunks,
+  compileChunk,
+  isChunk,
+  renderChunk
+} from './chunk';
 
 import {
   emptyNode,
-  tempElement,
   moveChildNodes,
   replaceElements
 } from './utils/dom';
 
 import {
+  CONFIG_TYPES,
   ERROR_PREFIX,
   HTML_WHITESPACE_REGEX,
   PLACEHOLDER_HTML,
-  htmlWhitespaceReplace,
-  CONFIG_TYPES,
-  createDefaultConfig
+  createDefaultConfig,
+  htmlWhitespaceReplace
 } from './const';
 
-const $VALUE_REJECTED = Symbol('rejected');
+import parser from './parser';
 
 const warn = (msg) => console.warn(ERROR_PREFIX, msg);
 
 const warnings = {
-  EXP_ARRAY: 'A deeply nested array was used inside of a template expression. Adjust your template to remove redundant nesting of arrays.',
-  EXP_OBJECT: 'An object was used inside of a template expression. Objects other than views, Nodes and and chunks are ignored.',
+  EXP_ARRAY: 'A deeply nested array was used inside of a template value. Adjust your template to remove redundant nesting of arrays.',
+  EXP_OBJECT: 'An object was used inside of a template value. Objects other than views, Nodes and and chunks are ignored.',
   PARSED_NON_OBJECT: 'An array or value other than object was returned from parse(). parse() should return a view instance, usually an object. If you return an object other than a view instance, your views may not be disposed of correctly.'
 };
 
-const isChunk = (c) => chunks.has(c);
-const isNode = (c) => c instanceof Node;
-const isObject = (c) => typeof c === 'object' && !isArray(c);
-const isArray = (c) => Array.isArray(c);
-const isString = (c) => typeof c === 'string';
-const isFunction = (c) => c instanceof Function;
+// In theory, use of WeakMaps will prevent us from causing memory leaks.
+// Sometimes we will hold on to many nodes at a time, and those nodes may be
+// removed in functions outside of the library.
 
-// childMap stores all children of a Node that has been rendered to. The
-// children are stored in an array of either chunks or Nodes, and are
-// recursively cleaned up the next time the Node is rendered to.
-// <Node, Array<Component>>
-const childMap = new WeakMap(); 
-// componentMap associates Nodes with their corresponding views.
-// <Component, View>
-const componentMap = new WeakMap();
-// chunks keeps track of all chunks for verification.
-// <chunk>
-const chunks = new WeakSet();
+const chunkMap = map(); // <Node, Chunk>
+const viewMap = map();  // <Component, View>
 
-// Recursively tear down child views and chunks
-const teardown = (el, destroy) => {
-  const child = childMap.get(el);
-  if (child) {
-    cleanup(child, destroy);
+/**
+ * Recursively destroy any objects we have associated with a DOM node.
+ * @param  {Node} node
+ * @param  {Function} destroy
+ * @return {void}
+ */
+const teardown = (node, destroy) => {
+  const ch = chunkMap.get(node);
+  if (ch) {
+    chunkMap.delete(ch);
+    cleanup(ch, destroy);
   }
 };
 
-const cleanup = (child, destroy) => {
-  const view = componentMap.get(child);
+/**
+ * Recursively remove the underlying views of DOM nodes, calling the supplied
+ * remove() method along the way.
+ * @param  {Component} c
+ * @param  {Function} destroy
+ * @return {void}
+ */
+const cleanup = (c, destroy) => {
+  // Since a view's render() can return a chunk or an array of elements that
+  // is then converted into a chunk, both chunks and nodes (aka components)
+  // can have an underlying view.
+  const view = viewMap.get(c);
+  // If the component had an underlying view, destroy it.
   if (view) {
     destroy(view);
-    componentMap.delete(child);
+    viewMap.delete(c);
   }
-  if (isNode(child)) {
-    teardown(child, destroy);
-    return;
-  } 
-  if (isChunk(child)) {
-    child.components.forEach((c) => cleanup(c, destroy));
-  }
-};
-
-const renderChunkToElement = (chunk, el) => {
-  const ch = flattenChunk(chunk);
-  const tt = tempElement(ch.html);
-  replaceElements(tt, ch.components);
-  emptyNode(el);
-  moveChildNodes(tt, el);
-};
-
-let placeholderRegex = new RegExp(PLACEHOLDER_HTML, 'g');
-
-const flattenChunk = (chunk) => {
-  var i = 0;
-  const newChunk = { components: [] };
-  newChunk.html = chunk.html.replace(placeholderRegex, (match) => {
-    const c = chunk.components[i++];
-    if (isChunk(c)) {
-      let flat = flattenChunk(c);
-      newChunk.components = newChunk.components.concat(flat.components);
-      return flat.html;
-    } else {
-      newChunk.components.push(c);
+  // Recurse into the chunk to attempt to clean up any child views.
+  // Base case: component wasn't a chunk or chunk has no child components. 
+  if (isChunk(c)) {
+    for (let i = 0, len = c.components.length; i < len; i++) {
+      cleanup(c.components[i], destroy);
     }
-    return match;
-  });
-  return newChunk;
+    return;
+  }
+  // Component wasn't a chunk, it was a node. The node could have an underlying
+  // chunk. Recurse back into teardown to check if it has a chunk to attempt to
+  // further clean up descendant views.
+  // Base case: component is not a chunk.
+  teardown(c, destroy);
 };
 
 const _createRenderer = (config) => {
   const { parse, render, destroy } = config;
-
-  const componentRenderer = (el) => function renderer(segments, ...expressions) {
-    teardown(el, destroy);
-    const ch = isChunk(segments) ? segments : chunk(...arguments);
-    // Remove all child components and store the incoming ones.
-    childMap.set(el, ch);
-    // Render the chunk to the el.
-    renderChunkToElement(ch, el);
-    return ch;
+  
+  const chunk = function chunk(strings, ...values) {
+    return compileChunk(strings, values, getComponent);
   };
 
-  const createChunk = (segments, ...expressions) => {
-    var html = '';
-    const components = [];
-    const asTag = !!segments.raw;
-
-    if (!isArray(segments)) {
-      segments = [segments];
-    }
-
-    if (asTag) {
-      html += segments[0];
-    }
-
-    for (let i = asTag ? 1 : 0, len = segments.length; i < len; i++) { 
-      let seg = segments[i];
-      let exp = asTag ? expressions[i - 1] : seg;
-      if (!asTag && isString(seg)) {
-        html += escape(seg);
-        continue;
-      }
-      let parsed = parseExpressions(exp);
-      for (let i = 0, len = parsed.length; i < len; i++) {
-        let c = parsed[i];
-        if (isString(c)) {
-          html += escape(c);
-        } else {
-          components.push(c);
-          html += PLACEHOLDER_HTML;
-        }
-      }
-      if (asTag) {
-        html += seg;
-      }
-    }
-
-    return { components, html };
-  };
-
-  const chunk = function chunk(segments, ...expressions) {
-    const ch = createChunk(...arguments);
-    chunks.add(ch);
-    return ch;
-  };
-
-  const tryParse = (exp) => {
-    var parsed = parse(exp);
+  const getComponent = (val) => {
+    var parsed = parse(val);
     // If the parse() function returns a falsey value, the component must not
     // be a view.
     if (!parsed) {
-      return exp;
+      return val;
     }
-    // View library might organize views as arrays.
+    // Supplied parse function returned a non-Object value.
     if (!isObject(parsed)) {
       warn(warnings.PARSED_NON_OBJECT);
     }
-    // Render the element and return the element (or elements) therein. This
+    // Render the view and return the element (or elements) therein. This
     // would potentially trigger other calls to componentRenderer which would
-    // recursively set up child content in a depth-first manner.
-    let el = render(parsed);
+    // build up child content in a depth-first manner.
+    let node = render(parsed);
     // Multiple elements can be returned from the render function. They are
     // combined into a chunk. It is assumed that the parent view will clean
     // them up with destroy() is called.
-    if (isArray(el)) {
-      el = chunk(el);
+    if (isArray(node)) {
+      node = chunk(node);
     }
-    // Set the element (or chunk) to the View instance in componentMap. The
-    // componentMap is accessed in cleanup() to reconcile an element or chunk
+    // Set the element (or chunk) to the View instance in viewMap. The
+    // viewMap is accessed in cleanup() to reconcile an element or chunk
     // with its view.
-    if (isObject(el)) {
-      componentMap.set(el, parsed);
+    if (isObject(node)) {
+      viewMap.set(node, parsed);
     }
-    return el;
+    return node;
   };
 
-  const parseExpression = (exp) => {
-    // Ignore null/undefined.
-    if (exp == void(0)) {
-      return $VALUE_REJECTED;
-    }
-    if (isString(exp) || isChunk(exp)) {
-      return exp;
-    }
-    // Yield control to the end-user. Attempt to render the component if it is
-    // fact a view instance.
-    exp = tryParse(exp);
-    // If the component is still a function for whatever reason, execute it and
-    // set the component to the return value of the function.
-    if (isFunction(exp)) {
-      exp = tryParse(exp());
-    }
-    // The function could have potentially returned a chunk. Either way, Node
-    // instances and chunks are the last objects we will accept.
-    if (isChunk(exp) || isNode(exp)) {
-      return exp;
-    }
-    if (isArray(exp)) {
-      warn(warnings.EXP_ARRAY);
-      return $VALUE_REJECTED;
-    }
-    // Ignore all other objects.
-    if (isObject(exp)) {
-      warn(warnings.EXP_OBJECT);
-      return $VALUE_REJECTED;
-    }
-    // Stringify all other values.
-    exp = '' + exp;
-
-    return exp;
+  const componentRenderer = (node) => function renderer(strings, ...values) {
+    teardown(node, destroy);
+    const ch = isChunk(strings) ? strings : chunk(strings, ...values);
+    // Remove all child components and store the incoming ones.
+    chunkMap.set(node, ch);
+    // Render the chunk to the node.
+    renderChunk(ch, node);
+    return ch;
   };
-
-  const parseExpressions = (exp) => {
-    const arr = [];
-    if (isArray(exp)) {
-      for (let i = 0, len = exp.length; i < len; i++) {
-        let c = parseExpression(exp[i]);
-        if (c !== $VALUE_REJECTED) {
-          arr.push(c);
-        }
-      }
-    } else {
-      let c = parseExpression(exp);
-      if (c !== $VALUE_REJECTED) {
-        arr.push(c);
-      }
-    }
-    return arr;
-  }
 
   return { componentRenderer, chunk };
 }

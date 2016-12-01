@@ -7,10 +7,13 @@
     "babel": "^6.5.2",
     "babel-core": "^6.18.2",
     "babel-loader": "^6.2.8",
+    "babel-plugin-transform-runtime": "^6.15.0",
+    "babel-polyfill": "^6.16.0",
     "babel-preset-es2015": "^6.18.0",
     "babel-preset-stage-0": "^6.16.0",
     "babel-register": "^6.18.0",
     "chai": "^3.5.0",
+    "core-js": "^2.4.1",
     "imports-loader": "^0.6.5",
     "jquery": "^3.1.1",
     "jsdom": "^9.8.3",
@@ -23,9 +26,11 @@
     "webpack-dev-server": "^1.16.2"
   },
   "scripts": {
+    "prepublish": "npm run build",
     "test": "mocha -R min -r babel-core/register ./test/index.js",
-    "devtest": "webpack-dev-server --config webpack.test.config.js",
-    "build": "webpack"
+    "test:dev": "webpack-dev-server --config webpack.test.config.js",
+    "build": "webpack && npm run build:ex",
+    "build:ex": "babel ex/main.js > ex/main.build.js"
   },
   "author": "",
   "license": "ISC",

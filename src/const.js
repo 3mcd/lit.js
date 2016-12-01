@@ -7,12 +7,20 @@ const CONFIG_TYPES = {
 };
 
 const createDefaultConfig = () => ({
-  parse: (view) => view,
-  render: (view) => view,
-  destroy: (view) => view.parentElement.removeChild(view)
+  parse(c) {
+    if (c.nodeType) {
+      return c;
+    }
+  },
+  render(view) {
+    return view;
+  },
+  destroy (view) {
+    view.parentElement.removeChild(view);
+  }
 });
 
-const PLACEHOLDER_HTML = `<span class="__lit"></span>`;
+const PLACEHOLDER_HTML = `<litpl></litpl>`;
 
 const HTML_WHITESPACE_REGEX = /(^\s+|\>[\s]+\<|\s+$)/g;
 const htmlWhitespaceReplace = (str) => str.indexOf('>') === 0 ? '><' : '';
