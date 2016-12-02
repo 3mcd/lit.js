@@ -1,10 +1,4 @@
-import { set } from './types';
-
-import {
-  escapeHTML,
-  isArray,
-  isString
-} from './utils';
+import { escapeHTML, isArray, isString } from './utils';
 
 import {
   emptyNode,
@@ -14,6 +8,7 @@ import {
 } from './utils/dom';
 
 import { PLACEHOLDER_HTML } from './const';
+import { set } from './types';
 
 import parser from './parser';
 

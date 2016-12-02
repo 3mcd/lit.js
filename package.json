@@ -4,7 +4,6 @@
   "description": "ES2015 template-to-DOM rendering engine.",
   "main": "dist/lit.js",
   "devDependencies": {
-    "babel": "^6.5.2",
     "babel-core": "^6.18.2",
     "babel-loader": "^6.2.8",
     "babel-plugin-transform-runtime": "^6.15.0",

@@ -1,10 +1,11 @@
-const ERROR_PREFIX = 'litjs: ';
-
 const CONFIG_TYPES = {
   parse: Function,
   render: Function,
   destroy: Function
 };
+const ERROR_PREFIX = 'lit-js: ';
+const HTML_WHITESPACE_REGEX = /(^\s+|\>[\s]+\<|\s+$)/g;
+const PLACEHOLDER_HTML = `<litpl></litpl>`;
 
 const createDefaultConfig = () => ({
   parse(c) {
@@ -20,9 +21,6 @@ const createDefaultConfig = () => ({
   }
 });
 
-const PLACEHOLDER_HTML = `<litpl></litpl>`;
-
-const HTML_WHITESPACE_REGEX = /(^\s+|\>[\s]+\<|\s+$)/g;
 const htmlWhitespaceReplace = (str) => str.indexOf('>') === 0 ? '><' : '';
 
 export {

@@ -8,20 +8,7 @@ import {
   isString
 } from './utils';
 
-import { map } from './types';
-
-import {
-  chunks,
-  compileChunk,
-  isChunk,
-  renderChunk
-} from './chunk';
-
-import {
-  emptyNode,
-  moveChildNodes,
-  replaceElements
-} from './utils/dom';
+import { emptyNode, moveChildNodes, replaceElements } from './utils/dom';
 
 import {
   CONFIG_TYPES,
@@ -32,15 +19,9 @@ import {
   htmlWhitespaceReplace
 } from './const';
 
-import parser from './parser';
-
-const warn = (msg) => console.warn(ERROR_PREFIX, msg);
-
-const warnings = {
-  EXP_ARRAY: 'A deeply nested array was used inside of a template value. Adjust your template to remove redundant nesting of arrays.',
-  EXP_OBJECT: 'An object was used inside of a template value. Objects other than views, Nodes and and chunks are ignored.',
-  PARSED_NON_OBJECT: 'An array or value other than object was returned from parse(). parse() should return a view instance, usually an object. If you return an object other than a view instance, your views may not be disposed of correctly.'
-};
+import { map } from './types';
+import { warn, warnings } from './log';
+import { chunks, compileChunk, isChunk, renderChunk } from './chunk';
 
 // In theory, use of WeakMaps will prevent us from causing memory leaks.
 // Sometimes we will hold on to many nodes at a time, and those nodes may be

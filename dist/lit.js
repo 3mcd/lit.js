@@ -82,29 +82,15 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	var _utils = __webpack_require__(2);
 
-	var _types = __webpack_require__(6);
-
-	var _chunk = __webpack_require__(9);
-
 	var _dom = __webpack_require__(3);
 
 	var _const = __webpack_require__(4);
 
-	var _parser = __webpack_require__(5);
+	var _types = __webpack_require__(5);
 
-	var _parser2 = _interopRequireDefault(_parser);
+	var _log = __webpack_require__(8);
 
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-	var warn = function warn(msg) {
-	  return console.warn(_const.ERROR_PREFIX, msg);
-	};
-
-	var warnings = {
-	  EXP_ARRAY: 'A deeply nested array was used inside of a template value. Adjust your template to remove redundant nesting of arrays.',
-	  EXP_OBJECT: 'An object was used inside of a template value. Objects other than views, Nodes and and chunks are ignored.',
-	  PARSED_NON_OBJECT: 'An array or value other than object was returned from parse(). parse() should return a view instance, usually an object. If you return an object other than a view instance, your views may not be disposed of correctly.'
-	};
+	var _chunk = __webpack_require__(9);
 
 	// In theory, use of WeakMaps will prevent us from causing memory leaks.
 	// Sometimes we will hold on to many nodes at a time, and those nodes may be
@@ -182,7 +168,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	    // Supplied parse function returned a non-Object value.
 	    if (!(0, _utils.isObject)(parsed)) {
-	      warn(warnings.PARSED_NON_OBJECT);
+	      (0, _log.warn)(_log.warnings.PARSED_NON_OBJECT);
 	    }
 	    // Render the view and return the element (or elements) therein. This
 	    // would potentially trigger other calls to componentRenderer which would
@@ -375,13 +361,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-	var ERROR_PREFIX = 'litjs: ';
-
 	var CONFIG_TYPES = {
 	  parse: Function,
 	  render: Function,
 	  destroy: Function
 	};
+	var ERROR_PREFIX = 'lit-js: ';
+	var HTML_WHITESPACE_REGEX = /(^\s+|\>[\s]+\<|\s+$)/g;
+	var PLACEHOLDER_HTML = '<litpl></litpl>';
 
 	var createDefaultConfig = function createDefaultConfig() {
 	  return {
@@ -399,9 +386,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  };
 	};
 
-	var PLACEHOLDER_HTML = '<litpl></litpl>';
-
-	var HTML_WHITESPACE_REGEX = /(^\s+|\>[\s]+\<|\s+$)/g;
 	var htmlWhitespaceReplace = function htmlWhitespaceReplace(str) {
 	  return str.indexOf('>') === 0 ? '><' : '';
 	};
@@ -422,81 +406,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	Object.defineProperty(exports, "__esModule", {
 	  value: true
 	});
-
-	var _chunk = __webpack_require__(9);
-
-	var _utils = __webpack_require__(2);
-
-	var $VALUE_REJECTED = {};
-
-	var parseValue = function parseValue(val, getComponent) {
-	  // Ignore null/undefined.
-	  if (val == void 0) {
-	    return $VALUE_REJECTED;
-	  }
-	  if ((0, _utils.isString)(val) || (0, _chunk.isChunk)(val)) {
-	    return val;
-	  }
-	  val = getComponent(val);
-	  // If the component is still a function for whatever reason, execute it and
-	  // set the component to the return value of the function.
-	  if ((0, _utils.isFunction)(val)) {
-	    val = getComponent(val());
-	  }
-	  // The function could have potentially returned a chunk. Either way, Node
-	  // instances and chunks are the last objects we will accept.
-	  if ((0, _chunk.isChunk)(val) || (0, _utils.isNode)(val)) {
-	    return val;
-	  }
-	  if ((0, _utils.isArray)(val)) {
-	    warn(warnings.EXP_ARRAY);
-	    return $VALUE_REJECTED;
-	  }
-	  // Ignore all other objects.
-	  if ((0, _utils.isObject)(val)) {
-	    warn(warnings.EXP_OBJECT);
-	    return $VALUE_REJECTED;
-	  }
-	  // Stringify all other values.
-	  val = '' + val;
-
-	  return val;
-	};
-
-	var parser = function parser(val, getComponent) {
-	  var arr = [];
-	  var tryParse = function tryParse(val) {
-	    var c = parseValue(val, getComponent);
-	    if (c !== $VALUE_REJECTED) {
-	      arr.push(c);
-	    }
-	  };
-	  if ((0, _utils.isArray)(val)) {
-	    val.forEach(tryParse);
-	  } else {
-	    tryParse(val);
-	  }
-	  return arr;
-	};
-
-	exports.default = parser;
-
-/***/ },
-/* 6 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	Object.defineProperty(exports, "__esModule", {
-	  value: true
-	});
 	exports.set = exports.map = undefined;
 
-	var _map = __webpack_require__(7);
+	var _map = __webpack_require__(6);
 
 	var _map2 = _interopRequireDefault(_map);
 
-	var _set = __webpack_require__(8);
+	var _set = __webpack_require__(7);
 
 	var _set2 = _interopRequireDefault(_set);
 
@@ -506,7 +422,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.set = _set2.default;
 
 /***/ },
-/* 7 */
+/* 6 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -558,7 +474,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.default = map;
 
 /***/ },
-/* 8 */
+/* 7 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -591,6 +507,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.default = set;
 
 /***/ },
+/* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+	exports.warnings = exports.warn = undefined;
+
+	var _const = __webpack_require__(4);
+
+	var warn = function warn(msg) {
+	  return console.warn(_const.ERROR_PREFIX, msg);
+	};
+
+	var warnings = {
+	  EXP_ARRAY: 'A deeply nested array was used inside of a template value. Adjust your template to remove redundant nesting of arrays.',
+	  EXP_OBJECT: 'An object was used inside of a template value. Objects other than views, Nodes and and chunks are ignored.',
+	  PARSED_NON_OBJECT: 'An array or value other than object was returned from parse(). parse() should return a view instance, usually an object. If you return an object other than a view instance, your views may not be disposed of correctly.'
+	};
+
+	exports.warn = warn;
+	exports.warnings = warnings;
+
+/***/ },
 /* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -601,15 +543,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 	exports.renderChunk = exports.compileChunk = exports.isChunk = exports.chunks = undefined;
 
-	var _types = __webpack_require__(6);
-
 	var _utils = __webpack_require__(2);
 
 	var _dom = __webpack_require__(3);
 
 	var _const = __webpack_require__(4);
 
-	var _parser = __webpack_require__(5);
+	var _types = __webpack_require__(5);
+
+	var _parser = __webpack_require__(10);
 
 	var _parser2 = _interopRequireDefault(_parser);
 
@@ -709,6 +651,76 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.isChunk = isChunk;
 	exports.compileChunk = compileChunk;
 	exports.renderChunk = renderChunk;
+
+/***/ },
+/* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+
+	var _utils = __webpack_require__(2);
+
+	var _chunk = __webpack_require__(9);
+
+	var _log = __webpack_require__(8);
+
+	var $VALUE_REJECTED = {};
+
+	var parseValue = function parseValue(val, getComponent) {
+	  // Ignore null/undefined.
+	  if (val == void 0) {
+	    return $VALUE_REJECTED;
+	  }
+	  if ((0, _utils.isString)(val) || (0, _chunk.isChunk)(val)) {
+	    return val;
+	  }
+	  val = getComponent(val);
+	  // If the component is still a function for whatever reason, execute it and
+	  // set the component to the return value of the function.
+	  if ((0, _utils.isFunction)(val)) {
+	    val = getComponent(val());
+	  }
+	  // The function could have potentially returned a chunk. Either way, Node
+	  // instances and chunks are the last objects we will accept.
+	  if ((0, _chunk.isChunk)(val) || (0, _utils.isNode)(val)) {
+	    return val;
+	  }
+	  if ((0, _utils.isArray)(val)) {
+	    (0, _log.warn)(_log.warnings.EXP_ARRAY);
+	    return $VALUE_REJECTED;
+	  }
+	  // Ignore all other objects.
+	  if ((0, _utils.isObject)(val)) {
+	    (0, _log.warn)(_log.warnings.EXP_OBJECT);
+	    return $VALUE_REJECTED;
+	  }
+	  // Stringify all other values.
+	  val = '' + val;
+
+	  return val;
+	};
+
+	var parser = function parser(val, getComponent) {
+	  var arr = [];
+	  var tryParse = function tryParse(val) {
+	    var c = parseValue(val, getComponent);
+	    if (c !== $VALUE_REJECTED) {
+	      arr.push(c);
+	    }
+	  };
+	  if ((0, _utils.isArray)(val)) {
+	    val.forEach(tryParse);
+	  } else {
+	    tryParse(val);
+	  }
+	  return arr;
+	};
+
+	exports.default = parser;
 
 /***/ }
 /******/ ])

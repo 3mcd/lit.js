@@ -95,3 +95,6 @@ const test = (n) => {
 };
 
 test(10);
+
+componentRenderer(document.createElement('div'))`${{}}`;
+componentRenderer(document.createElement('div'))`${[[[]]]}`;

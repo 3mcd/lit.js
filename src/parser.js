@@ -1,7 +1,3 @@
-const $VALUE_REJECTED = {};
-
-import { isChunk } from './chunk';
-
 import {
   isArray,
   isFunction,
@@ -9,6 +5,11 @@ import {
   isObject,
   isString
 } from './utils';
+
+import { isChunk } from './chunk';
+import { warn, warnings } from './log';
+
+const $VALUE_REJECTED = {};
 
 const parseValue = (val, getComponent) => {
   // Ignore null/undefined.
